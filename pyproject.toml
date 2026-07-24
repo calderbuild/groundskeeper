@@ -1,0 +1,17 @@
+[project]
+name = "groundskeeper"
+version = "0.1.0"
+description = "Metadata-aware data code generation with a verification gate"
+requires-python = ">=3.10,<3.13"
+dependencies = ["acryl-datahub>=1.6.0", "duckdb>=1.1.0", "sqlglot>=25.0.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/groundskeeper"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
