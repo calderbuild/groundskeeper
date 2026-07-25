@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -37,6 +38,8 @@ async def main() -> int:
     )
     parser.add_argument("--no-gates", action="store_true", help="skip verification")
     parser.add_argument("--name", default="generated_model")
+    parser.add_argument("--write-back", action="store_true",
+                        help="register the verified model in DataHub with lineage")
     args = parser.parse_args()
 
     async with mcp_session() as session:
@@ -71,6 +74,19 @@ async def main() -> int:
     if final:
         print("\n--- final SQL ---")
         print(final.artifact.to_dbt_sql())
+
+    if args.write_back:
+        if not report.shipped:
+            print("\nNot writing back: the model did not pass verification.")
+        else:
+            from groundskeeper.writeback import emit, plan_writeback
+
+            plan = plan_writeback(final.artifact, context, len(report.attempts))
+            print("\n--- writing back to DataHub ---")
+            print(plan.summary())
+            emit(plan, os.environ.get("DATAHUB_GMS_URL", "http://localhost:8080"))
+            print("registered.")
+
     return 0 if report.shipped else 2
 
 

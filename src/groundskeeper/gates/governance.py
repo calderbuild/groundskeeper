@@ -18,7 +18,7 @@ from .base import Finding, Gate, GateResult
 SENSITIVE_MARKERS = ("pii", "sensitive", "confidential", "personal_data", "gdpr", "phi")
 
 
-def _is_sensitive(label: str) -> bool:
+def is_sensitive(label: str) -> bool:
     low = label.lower()
     return any(marker in low for marker in SENSITIVE_MARKERS)
 
@@ -55,7 +55,7 @@ class GovernanceGate(Gate):
                 )
                 continue
             for tag in tags:
-                if _is_sensitive(tag):
+                if is_sensitive(tag):
                     inherited.setdefault(tag, []).append(f"{table_urn}.{column}")
 
         declared = {t.lower() for t in getattr(artifact, "declared_tags", set())}
