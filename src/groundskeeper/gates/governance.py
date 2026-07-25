@@ -37,6 +37,13 @@ class GovernanceGate(Gate):
         unverifiable: list[Finding] = []
 
         for table_urn, column in artifact.column_refs:
+            known = context.schema_for(table_urn)
+            if known is not None and column not in known:
+                # A column that doesn't exist is the field-existence gate's
+                # problem. Escalating it here too would turn a repairable
+                # failure into a dead end, since escalation stops the retry loop.
+                continue
+
             tags = context.tags_for_column(table_urn, column)
             if tags is None:
                 unverifiable.append(

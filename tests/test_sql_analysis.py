@@ -66,3 +66,19 @@ def test_broken_sql_reports_a_parse_error_instead_of_raising():
 def test_table_names_match_case_insensitively():
     a = analyze("SELECT order_id FROM ORDERS", NAMES)
     assert (ORDERS, "order_id") in a.column_refs
+
+
+def test_cte_name_is_not_reported_as_a_missing_catalog_table():
+    # False-flagging a CTE escalates the run and kills the repair loop.
+    sql = """
+        WITH order_counts AS (
+            SELECT customer_id, COUNT(*) AS n FROM orders GROUP BY customer_id
+        )
+        SELECT c.id, order_counts.n
+        FROM order_counts JOIN customers c ON c.id = order_counts.customer_id
+        WHERE order_counts.n > 5
+    """
+    a = analyze(sql, NAMES)
+    assert a.unresolved_tables == []
+    # The real table inside the CTE is still checked.
+    assert (ORDERS, "customer_id") in a.column_refs

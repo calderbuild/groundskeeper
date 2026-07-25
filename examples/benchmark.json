@@ -1,0 +1,267 @@
+{
+  "summary": {
+    "ungrounded": {
+      "tasks": 8,
+      "first_attempt_clean": 1,
+      "shipped": 1,
+      "first_attempt_rate": 12,
+      "shipped_rate": 12
+    },
+    "grounded": {
+      "tasks": 8,
+      "first_attempt_clean": 7,
+      "shipped": 7,
+      "first_attempt_rate": 88,
+      "shipped_rate": 88
+    },
+    "verified": {
+      "tasks": 8,
+      "first_attempt_clean": 7,
+      "shipped": 8,
+      "first_attempt_rate": 88,
+      "shipped_rate": 100
+    }
+  },
+  "runs": [
+    {
+      "arm": "ungrounded",
+      "task": "total revenue and order count by region for the last 30 days",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema",
+        "compilation: SQL failed to execute against the catalog's schema"
+      ]
+    },
+    {
+      "arm": "grounded",
+      "task": "total revenue and order count by region for the last 30 days",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "verified",
+      "task": "total revenue and order count by region for the last 30 days",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "ungrounded",
+      "task": "the ten products with the highest total quantity sold",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "grounded",
+      "task": "the ten products with the highest total quantity sold",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "verified",
+      "task": "the ten products with the highest total quantity sold",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "ungrounded",
+      "task": "average order value per customer, highest first",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema",
+        "compilation: SQL failed to execute against the catalog's schema"
+      ]
+    },
+    {
+      "arm": "grounded",
+      "task": "average order value per customer, highest first",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "verified",
+      "task": "average order value per customer, highest first",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "ungrounded",
+      "task": "monthly order volume for the current year",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "compilation: SQL failed to execute against the catalog's schema"
+      ]
+    },
+    {
+      "arm": "grounded",
+      "task": "monthly order volume for the current year",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema"
+      ]
+    },
+    {
+      "arm": "verified",
+      "task": "monthly order volume for the current year",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 3,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema"
+      ]
+    },
+    {
+      "arm": "ungrounded",
+      "task": "customers who have placed more than five orders",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema",
+        "compilation: SQL failed to execute against the catalog's schema"
+      ]
+    },
+    {
+      "arm": "grounded",
+      "task": "customers who have placed more than five orders",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "verified",
+      "task": "customers who have placed more than five orders",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "ungrounded",
+      "task": "revenue by product category",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema",
+        "compilation: SQL failed to execute against the catalog's schema"
+      ]
+    },
+    {
+      "arm": "grounded",
+      "task": "revenue by product category",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "verified",
+      "task": "revenue by product category",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "ungrounded",
+      "task": "orders that have not shipped yet, with the customer contact",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema",
+        "compilation: SQL failed to execute against the catalog's schema"
+      ]
+    },
+    {
+      "arm": "grounded",
+      "task": "orders that have not shipped yet, with the customer contact",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "verified",
+      "task": "orders that have not shipped yet, with the customer contact",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "ungrounded",
+      "task": "average number of items per order by region",
+      "outcome": "fail",
+      "shipped": false,
+      "attempts": 1,
+      "first_attempt_clean": false,
+      "first_attempt_failures": [
+        "field_existence: Column does not exist in the catalog schema",
+        "compilation: SQL failed to execute against the catalog's schema"
+      ]
+    },
+    {
+      "arm": "grounded",
+      "task": "average number of items per order by region",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    },
+    {
+      "arm": "verified",
+      "task": "average number of items per order by region",
+      "outcome": "pass",
+      "shipped": true,
+      "attempts": 1,
+      "first_attempt_clean": true,
+      "first_attempt_failures": []
+    }
+  ]
+}

@@ -21,6 +21,10 @@ class FakeContext:
     # Columns known to the catalog but carrying no tags -> empty set, not None.
     known: set[tuple[str, str]] = field(default_factory=set)
 
+    def schema_for(self, urn: str):
+        cols = {c for u, c in self.known if u == urn}
+        return cols or None
+
     def tags_for_column(self, urn: str, column: str):
         key = (urn, column)
         if key in self.column_tags:
@@ -72,6 +76,14 @@ def test_finding_names_the_source_column_as_evidence():
     assert any("email" in e for e in result.findings[0].evidence)
 
 
-def test_unclassified_column_escalates():
-    art = FakeArtifact(column_refs=[(CUST, "undocumented_col")])
+def test_uncatalogued_table_escalates():
+    # Governance can't be reasoned about for a table DataHub has never seen.
+    unknown = "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop.public.ghost,PROD)"
+    art = FakeArtifact(column_refs=[(unknown, "anything")])
     assert GovernanceGate().check(art, ctx()).verdict is Verdict.ESCALATE
+
+
+def test_nonexistent_column_is_left_to_the_field_existence_gate():
+    # Escalating here would convert a repairable failure into a dead end.
+    art = FakeArtifact(column_refs=[(CUST, "not_a_real_column")])
+    assert GovernanceGate().check(art, ctx()).verdict is Verdict.PASS
