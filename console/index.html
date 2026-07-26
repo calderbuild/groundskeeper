@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Groundskeeper — verification console</title>
+<style>
+  :root {
+    --ink: #0b0f14;
+    --panel: #131a22;
+    --panel-2: #182230;
+    --rule: #233040;
+    --text: #c9d6e2;
+    --muted: #6f8296;
+    --pass: #3fb950;
+    --fail: #e5534b;
+    --escalate: #d29922;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .shell { max-width: 1240px; margin: 0 auto; padding: 28px 24px 64px; }
+
+  /* ---- header ---- */
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 20px; }
+
+  .wordmark {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 27px;
+    font-weight: 500;
+    margin: 8px 0 4px;
+    letter-spacing: -0.01em;
+  }
+
+  .strap { color: var(--muted); margin: 0; max-width: 62ch; }
+
+  /* ---- controls ---- */
+  .controls { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+
+  input[type="text"] {
+    flex: 1 1 340px;
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 11px 13px;
+    border-radius: 3px;
+  }
+  input[type="text"]::placeholder { color: var(--muted); }
+  input[type="text"]:focus-visible,
+  button:focus-visible,
+  label:focus-within {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+
+  button {
+    background: var(--text);
+    color: var(--ink);
+    border: 0;
+    border-radius: 3px;
+    padding: 11px 22px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button[disabled] { opacity: 0.45; cursor: default; }
+
+  .toggles { display: flex; gap: 18px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .toggles label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  .toggles input { accent-color: var(--text); }
+
+  /* ---- layout ---- */
+  .board {
+    display: grid;
+    grid-template-columns: minmax(320px, 400px) 1fr;
+    gap: 26px;
+    margin-top: 28px;
+    align-items: start;
+  }
+  @media (max-width: 860px) { .board { grid-template-columns: 1fr; } }
+
+  .col-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  /* ---- the gate rail: the signature element ---- */
+  .rail { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+
+  .gate { border-bottom: 1px solid var(--rule); background: var(--panel); }
+  .gate:last-child { border-bottom: 0; }
+
+  .gate-head {
+    display: grid;
+    grid-template-columns: 3px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px 14px 0;
+  }
+
+  .bar { height: 100%; min-height: 40px; background: var(--rule); transition: background 180ms ease; }
+  .gate[data-state="running"] .bar { background: var(--muted); animation: pulse 1s ease-in-out infinite; }
+  .gate[data-state="pass"] .bar { background: var(--pass); }
+  .gate[data-state="fail"] .bar { background: var(--fail); }
+  .gate[data-state="escalate"] .bar { background: var(--escalate); }
+
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) {
+    .gate[data-state="running"] .bar { animation: none; }
+    * { transition: none !important; }
+  }
+
+  .gate-name { font-family: var(--mono); font-size: 13px; }
+  .gate-why { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .verdict {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-right: 16px;
+  }
+  .gate[data-state="pass"] .verdict { color: var(--pass); }
+  .gate[data-state="fail"] .verdict { color: var(--fail); }
+  .gate[data-state="escalate"] .verdict { color: var(--escalate); }
+
+  .findings { padding: 0 16px 15px 17px; display: none; }
+  .gate[data-state="fail"] .findings,
+  .gate[data-state="escalate"] .findings { display: block; }
+  /* While a repair is in flight the previous evidence stays on screen, dimmed.
+     Blanking it would hide the very thing the run is about to fix. */
+  .gate[data-state="running"] .findings { display: block; opacity: 0.4; }
+
+  .finding {
+    border-left: 2px solid var(--rule);
+    padding: 9px 0 9px 13px;
+    margin-top: 9px;
+    font-size: 13px;
+  }
+  .finding .msg { color: var(--text); }
+  .finding .locus { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 3px; word-break: break-all; }
+  .finding .fix { font-family: var(--mono); font-size: 12px; color: var(--escalate); margin-top: 5px; }
+
+  /* ---- attempt strip ---- */
+  .attempts { display: flex; gap: 8px; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 2px 10px;
+    color: var(--muted);
+  }
+  .chip[data-state="pass"] { color: var(--pass); border-color: var(--pass); }
+  .chip[data-state="fail"] { color: var(--fail); border-color: var(--fail); }
+  .chip[data-state="escalate"] { color: var(--escalate); border-color: var(--escalate); }
+
+  /* ---- right column ---- */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    margin: 0;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text);
+  }
+
+  .log { font-family: var(--mono); font-size: 12.5px; }
+  .log-row { display: flex; gap: 12px; padding: 3px 0; color: var(--muted); }
+  .log-row .t { color: var(--rule); }
+  .log-row.key { color: var(--text); }
+
+  .tables { display: flex; flex-wrap: wrap; gap: 7px; }
+  .table-pill {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 4px 9px;
+  }
+  .table-pill span { color: var(--muted); }
+
+  .outcome {
+    font-family: var(--mono);
+    font-size: 15px;
+    padding: 15px 18px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    margin-bottom: 18px;
+  }
+  .outcome[data-state="pass"] { border-color: var(--pass); color: var(--pass); }
+  .outcome[data-state="fail"] { border-color: var(--fail); color: var(--fail); }
+  .outcome[data-state="escalate"] { border-color: var(--escalate); color: var(--escalate); }
+  .outcome .sub { color: var(--muted); font-size: 12.5px; margin-top: 5px; font-family: var(--sans); }
+
+  .empty { color: var(--muted); font-size: 13px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="wordmark">Groundskeeper</div>
+    <h1>Verification console</h1>
+    <p class="strap">
+      Every generated model is checked against the catalog before anyone sees it.
+      Watch each gate decide.
+    </p>
+
+    <div class="controls">
+      <input id="task" type="text" aria-label="What should the model compute?"
+             value="total revenue and order count by region for the last 30 days"
+             placeholder="What should the model compute?">
+      <button id="run">Run</button>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="grounded" checked> Use catalog schemas</label>
+      <label><input type="checkbox" id="writeback"> Register result in DataHub</label>
+    </div>
+  </header>
+
+  <div class="board">
+    <section>
+      <div class="col-label">
+        <span>Gates</span>
+        <span class="attempts" id="attempts"></span>
+      </div>
+      <div class="rail" id="rail"></div>
+    </section>
+
+    <section>
+      <div class="col-label"><span>Run</span></div>
+
+      <div class="outcome" id="outcome" hidden></div>
+
+      <div class="panel" id="catalog-panel" hidden>
+        <div class="col-label"><span>Grounded on</span></div>
+        <div class="tables" id="tables"></div>
+      </div>
+
+      <div class="panel" id="sql-panel" hidden>
+        <div class="col-label"><span id="sql-label">Generated SQL</span></div>
+        <pre id="sql"></pre>
+      </div>
+
+      <div class="panel">
+        <div class="col-label"><span>Activity</span></div>
+        <div class="log" id="log"><div class="empty">Idle. Run a task to begin.</div></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const GATES = [
+  ["sql_analysis",    "Parses the SQL and resolves each column to a dataset"],
+  ["field_existence", "Every column must exist in the catalog schema"],
+  ["governance",      "Sensitivity inherited from source columns"],
+  ["compilation",     "Executes on tables built from catalog types"],
+];
+
+const $ = (id) => document.getElementById(id);
+const rail = $("rail"), logEl = $("log"), attemptsEl = $("attempts");
+let stream = null, logged = false;
+
+function buildRail() {
+  rail.innerHTML = "";
+  for (const [name, why] of GATES) {
+    const el = document.createElement("div");
+    el.className = "gate";
+    el.dataset.state = "idle";
+    el.dataset.gate = name;
+    el.innerHTML = `
+      <div class="gate-head">
+        <div class="bar"></div>
+        <div>
+          <div class="gate-name">${name}</div>
+          <div class="gate-why">${why}</div>
+        </div>
+        <div class="verdict">waiting</div>
+      </div>
+      <div class="findings"></div>`;
+    rail.appendChild(el);
+  }
+}
+
+function markRunning() {
+  // Deliberately keeps each gate's previous findings on screen (dimmed) so the
+  // failure being repaired stays visible until its new verdict replaces it.
+  for (const el of rail.children) {
+    el.dataset.state = "running";
+    el.querySelector(".verdict").textContent = "checking";
+  }
+}
+
+function log(text, key) {
+  if (!logged) { logEl.innerHTML = ""; logged = true; }
+  const row = document.createElement("div");
+  row.className = "log-row" + (key ? " key" : "");
+  const now = new Date();
+  const t = [now.getHours(), now.getMinutes(), now.getSeconds()]
+    .map((n) => String(n).padStart(2, "0")).join(":");
+  row.innerHTML = `<span class="t">${t}</span><span>${text}</span>`;
+  logEl.appendChild(row);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function renderFindings(el, findings) {
+  const box = el.querySelector(".findings");
+  box.innerHTML = "";
+  for (const f of findings || []) {
+    const node = document.createElement("div");
+    node.className = "finding";
+    const bits = [`<div class="msg">${f.message}</div>`];
+    if (f.locus) bits.push(`<div class="locus">${f.locus}</div>`);
+    if (f.suggestion) bits.push(`<div class="fix">${f.suggestion}</div>`);
+    node.innerHTML = bits.join("");
+    box.appendChild(node);
+  }
+}
+
+function setAttempt(n, state) {
+  let chip = attemptsEl.querySelector(`[data-n="${n}"]`);
+  if (!chip) {
+    chip = document.createElement("span");
+    chip.className = "chip";
+    chip.dataset.n = n;
+    chip.textContent = "attempt " + n;
+    attemptsEl.appendChild(chip);
+  }
+  if (state) chip.dataset.state = state;
+}
+
+function handle(ev) {
+  switch (ev.kind) {
+    case "run_start":
+      log(`Task: ${ev.task}`, true);
+      break;
+    case "catalog": {
+      $("catalog-panel").hidden = false;
+      const box = $("tables");
+      box.innerHTML = "";
+      for (const t of ev.tables) {
+        const pill = document.createElement("span");
+        pill.className = "table-pill";
+        pill.innerHTML = `${t.name} <span>${t.columns} cols</span>`;
+        box.appendChild(pill);
+      }
+      log(`Loaded ${ev.tables.length} table schemas from DataHub`, true);
+      break;
+    }
+    case "attempt_start":
+      setAttempt(ev.attempt);
+      log(ev.repairing ? `Attempt ${ev.attempt} — repairing` : `Attempt ${ev.attempt}`, true);
+      break;
+    case "generated":
+      $("sql-panel").hidden = false;
+      $("sql").textContent = ev.sql;
+      markRunning();
+      log("Model returned SQL, verifying");
+      break;
+    case "gate": {
+      const el = rail.querySelector(`[data-gate="${ev.gate}"]`);
+      if (el) {
+        el.dataset.state = ev.verdict;
+        el.querySelector(".verdict").textContent = ev.verdict;
+        renderFindings(el, ev.findings);
+      }
+      if (ev.verdict !== "pass") {
+        const first = (ev.findings || [])[0];
+        log(`${ev.gate}: ${ev.verdict}${first ? " — " + first.message : ""}`);
+      }
+      break;
+    }
+    case "attempt_end":
+      setAttempt(ev.attempt, ev.verdict);
+      break;
+    case "written_back":
+      log(`Registered ${ev.urn} with ${ev.upstreams} upstream edges`, true);
+      break;
+    case "run_end": {
+      const box = $("outcome");
+      box.hidden = false;
+      box.dataset.state = ev.verdict;
+      const headline = ev.shipped
+        ? `Shipped after ${ev.attempts} attempt${ev.attempts > 1 ? "s" : ""}`
+        : ev.verdict === "escalate"
+          ? "Escalated to a human"
+          : "Rejected";
+      const sub = ev.shipped
+        ? "Every gate passed. This model is safe to open a PR with."
+        : ev.verdict === "escalate"
+          ? "The catalog is missing metadata this model depends on. Retrying cannot fix that."
+          : "Nothing that fails a gate is handed to a reviewer.";
+      box.innerHTML = `${headline}<div class="sub">${sub}</div>`;
+      if (ev.sql) { $("sql-label").textContent = "Final SQL"; $("sql").textContent = ev.sql; }
+      log(headline, true);
+      break;
+    }
+    case "error":
+      log(`Error: ${ev.message}`, true);
+      break;
+  }
+}
+
+function run() {
+  const task = $("task").value.trim();
+  if (!task) return;
+  if (stream) stream.close();
+
+  buildRail();
+  attemptsEl.innerHTML = "";
+  $("outcome").hidden = true;
+  $("sql-panel").hidden = true;
+  $("sql-label").textContent = "Generated SQL";
+  logEl.innerHTML = "";
+  logged = false;
+  $("run").disabled = true;
+  $("run").textContent = "Running";
+
+  const params = new URLSearchParams({
+    task,
+    grounded: $("grounded").checked ? "1" : "0",
+    write_back: $("writeback").checked ? "1" : "0",
+  });
+  stream = new EventSource("/api/run?" + params);
+  stream.onmessage = (msg) => {
+    const ev = JSON.parse(msg.data);
+    if (ev.kind === "done") {
+      stream.close();
+      stream = null;
+      $("run").disabled = false;
+      $("run").textContent = "Run";
+      return;
+    }
+    handle(ev);
+  };
+  stream.onerror = () => {
+    log("Stream closed", true);
+    if (stream) { stream.close(); stream = null; }
+    $("run").disabled = false;
+    $("run").textContent = "Run";
+  };
+}
+
+buildRail();
+$("run").addEventListener("click", run);
+$("task").addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+</script>
+</body>
+</html>

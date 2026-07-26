@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .artifact import Artifact
+from .events import Event, NullReporter, gate_event
 from .gates.base import GateResult, Verdict
 from .sql_analysis import analyze
 
@@ -79,27 +80,52 @@ class VerifiedGenerator:
     carries the previous failures on retries.
     """
 
-    def __init__(self, generator, gates, context, max_attempts: int = 3):
+    def __init__(self, generator, gates, context, max_attempts: int = 3, reporter=None):
         self.generator = generator
         self.gates = gates
         self.context = context
         self.max_attempts = max_attempts
+        self.reporter = reporter or NullReporter()
 
     def run(self, task: str, name_to_urn: dict[str, str]) -> RunReport:
         report = RunReport(task=task)
         brief: str | None = None
+        self.reporter(Event("run_start", {"task": task, "tables": sorted(name_to_urn)}))
 
-        for _ in range(self.max_attempts):
+        for index in range(self.max_attempts):
+            attempt_no = index + 1
+            self.reporter(
+                Event(
+                    "attempt_start",
+                    {"attempt": attempt_no, "repairing": brief is not None},
+                )
+            )
+
             artifact = self.generator(task, brief)
+            self.reporter(
+                Event("generated", {"attempt": attempt_no, "sql": artifact.sql})
+            )
+
             analysis = analyze(artifact.sql, name_to_urn)
             artifact.column_refs = analysis.column_refs
             artifact.source_tables = {t.name: t.urn for t in analysis.tables if t.urn}
 
             attempt = Attempt(artifact=artifact)
-            attempt.results.extend(_analysis_gate(analysis))
+            for result in _analysis_gate(analysis):
+                attempt.results.append(result)
+                self.reporter(gate_event(attempt_no, result))
             for gate in self.gates:
-                attempt.results.append(gate.check(artifact, self.context))
+                result = gate.check(artifact, self.context)
+                attempt.results.append(result)
+                self.reporter(gate_event(attempt_no, result))
             report.attempts.append(attempt)
+
+            self.reporter(
+                Event(
+                    "attempt_end",
+                    {"attempt": attempt_no, "verdict": attempt.verdict.value},
+                )
+            )
 
             if attempt.verdict is Verdict.PASS:
                 break
@@ -108,6 +134,17 @@ class VerifiedGenerator:
                 break
             brief = attempt.repair_brief()
 
+        self.reporter(
+            Event(
+                "run_end",
+                {
+                    "verdict": report.verdict.value,
+                    "shipped": report.shipped,
+                    "attempts": len(report.attempts),
+                    "sql": report.final.artifact.sql if report.final else "",
+                },
+            )
+        )
         return report
 
 
