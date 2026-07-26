@@ -73,6 +73,10 @@ DataHub is the load-bearing dependency, not a data source that could be swapped 
 - The catalog's **governance tags** propagate to generated outputs, so PII cannot be laundered into an untagged model
 - Uncatalogued tables and unclassified columns **escalate** rather than pass, which turns metadata gaps into visible work instead of silent risk
 
+## Contributed back
+
+[datahub-project/datahub#18633](https://github.com/datahub-project/datahub/pull/18633) — `package_data` declared `datahub.cli.resources`, but the datapack agent-context file and the bundled offline registry live in `datahub.cli.datapack.resources`, so neither shipped in the wheel. `datahub datapack --help` raised `FileNotFoundError` whenever stdout was not a tty — which is exactly how an agent or CI job calls it — and the offline registry fallback could never load. Found while building this project, since `datahub datapack load` is the first command the hackathon's own resources page points people at.
+
 ## Quickstart
 
 ```bash
@@ -94,7 +98,10 @@ export TOOLS_IS_MUTATION_ENABLED=true DATA_QUALITY_TOOLS_ENABLED=true
 # 4. Generate a verified model
 python scripts/run_task.py "total revenue and order count by region for the last 30 days"
 
-# 5. Reproduce the benchmark
+# 5. Watch it work in the browser
+python scripts/console.py          # http://127.0.0.1:8765
+
+# 6. Reproduce the benchmark
 python scripts/benchmark.py
 ```
 
@@ -111,7 +118,8 @@ src/groundskeeper/
   generator.py        LLM, grounded or not
   pipeline.py         generate → verify → repair, and the evidence report
   gates/              field_existence, governance, compilation
-scripts/              run_task.py, benchmark.py, e2e_gate_probe.py
+scripts/              run_task.py, benchmark.py, console.py, e2e_gate_probe.py
+console/              the verification console (single file, no build step)
 examples/             benchmark results, verification transcripts
 tests/                31 tests, no DataHub required
 ```
