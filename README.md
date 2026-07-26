@@ -117,17 +117,19 @@ src/groundskeeper/
   warehouse.py        DuckDB built from catalog schemas
   generator.py        LLM, grounded or not
   pipeline.py         generate → verify → repair, and the evidence report
+  writeback.py        registers the verified model with lineage and tags
+  server.py           SSE stream for the console (standard library only)
   gates/              field_existence, governance, compilation
 scripts/              run_task.py, benchmark.py, console.py, e2e_gate_probe.py
 console/              the verification console (single file, no build step)
 examples/             benchmark results, verification transcripts
-tests/                31 tests, no DataHub required
+tests/                38 tests, no DataHub required
 ```
 
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 31 passed
+python -m pytest tests/ -q     # 38 passed
 ```
 
 They cover the behaviour the project claims: hallucinated columns rejected and repaired, type errors caught only by execution, unqualified columns in joins refused rather than guessed, CTE names not mistaken for missing tables, and escalation never burning retries on absent metadata.
