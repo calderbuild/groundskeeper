@@ -31,13 +31,27 @@ Groundskeeper catches both before the model is ever offered.
 
 ## The console
 
-![Two defects caught in one run](docs/screenshots/02-gates-catch-two-defects.jpg)
+Three surfaces, one standard-library server, no build step.
 
-One run against a live catalog. `field_existence` rejects `order_items.price` (the column is `unit_price`); `compilation` rejects the date comparison because `order_date` is a `VARCHAR`. Both defects are in SQL that reads perfectly.
+| Where | What it answers |
+|---|---|
+| `/` | What is happening right now: gates deciding, live, over SSE |
+| `/runs/<id>` | What happened, as a permalink you can paste into a pull request |
+| `/benchmark` | Why any of this should be trusted, per task rather than in aggregate |
 
-![Repaired and shipped](docs/screenshots/03-repaired-and-shipped.jpg)
+![The record of a blocked run](docs/screenshots/02-gates-catch-two-defects.jpg)
 
-Attempt two, same gates, all green — `unit_price` and a `CAST` around the date.
+The record of one real run, without the catalog in front of the model. `field_existence` rejects a column that does not exist; `compilation` rejects a date comparison because `order_date` is a `VARCHAR`. Both defects are in SQL that reads perfectly, and neither reached a reviewer.
+
+Each gate carries its own history. The small squares beside it are that gate's verdict on every attempt, so which gate failed, when, and whether the repair worked is legible in one object. Here `field_existence` passed, then broke, and stayed broken.
+
+![A shipped run, registered in DataHub](docs/screenshots/03-shipped-and-registered.jpg)
+
+A run that passed every gate, with the lineage it wrote back to DataHub.
+
+![The benchmark, per task](docs/screenshots/04-benchmark.jpg)
+
+Every run is written to `runs/` as plain JSON, which is what makes the permalink and the history work without a database.
 
 ## What it does
 
@@ -128,21 +142,23 @@ src/groundskeeper/
   generator.py        LLM, grounded or not
   pipeline.py         generate → verify → repair, and the evidence report
   writeback.py        registers the verified model with lineage and tags
-  server.py           SSE stream for the console (standard library only)
+  store.py            durable run records, one JSON file each
+  server.py           SSE stream and JSON API (standard library only)
   gates/              field_existence, governance, compilation
 scripts/              run_task.py, benchmark.py, console.py, e2e_gate_probe.py
-console/              the verification console (single file, no build step)
+console/              console, records and benchmark (single file, no build step)
 examples/             benchmark results, verification transcripts
-tests/                38 tests, no DataHub required
+runs/                 run records, written as you go (gitignored)
+tests/                47 tests, no DataHub required
 ```
 
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 38 passed
+python -m pytest tests/ -q     # 47 passed
 ```
 
-They cover the behaviour the project claims: hallucinated columns rejected and repaired, type errors caught only by execution, unqualified columns in joins refused rather than guessed, CTE names not mistaken for missing tables, and escalation never burning retries on absent metadata.
+They cover the behaviour the project claims: hallucinated columns rejected and repaired, type errors caught only by execution, unqualified columns in joins refused rather than guessed, CTE names not mistaken for missing tables, escalation never burning retries on absent metadata, and a run record that survives the trip to disk saying the same thing it said on screen.
 
 ## Notes and limits
 

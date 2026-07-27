@@ -3,58 +3,126 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Groundskeeper — verification console</title>
+<title>Groundskeeper</title>
 <style>
+  /* ------------------------------------------------------------------
+     Two rules govern everything here.
+
+     1. Type carries meaning, not mood. Monospace means the text IS or NAMES
+        something inside the machine: SQL, a URN, a column, a gate, a verdict,
+        a run id. Sans is the interface speaking to you. Nothing else varies.
+
+     2. Colour is spent only on verdicts. The surface is a true neutral —
+        no blue cast — so pass/fail/escalate are the sole chroma on screen
+        and read as ink rather than neon.
+     ------------------------------------------------------------------ */
   :root {
-    --ink: #0b0f14;
-    --panel: #131a22;
-    --panel-2: #182230;
-    --rule: #233040;
-    --text: #c9d6e2;
-    --muted: #6f8296;
-    --pass: #3fb950;
-    --fail: #e5534b;
-    --escalate: #d29922;
+    --ink:      #0d0d0e;
+    --panel:    #151517;
+    --panel-2:  #1c1c1f;
+    --rule:     #2a2a2e;
+    --rule-lit: #3a3a40;
+    --text:     #d6d6d2;
+    --muted:    #7c7c78;
+    --faint:    #4e4e4c;
+
+    --pass:     #4ea86a;
+    --fail:     #d9534a;
+    --escalate: #c9962c;
+
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    --step: 200ms cubic-bezier(0.2, 0, 0, 1);
   }
 
   * { box-sizing: border-box; }
+
+  html { scrollbar-color: var(--rule-lit) var(--ink); }
 
   body {
     margin: 0;
     background: var(--ink);
     color: var(--text);
-    font-family: var(--sans);
+    font-family: var(--ui);
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
 
-  .shell { max-width: 1240px; margin: 0 auto; padding: 28px 24px 64px; }
+  a { color: inherit; }
 
-  /* ---- header ---- */
-  header { border-bottom: 1px solid var(--rule); padding-bottom: 20px; }
+  :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: 2px; }
 
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+
+  /* ---- chrome ---- */
+  .masthead {
+    border-bottom: 1px solid var(--rule);
+    position: sticky;
+    top: 0;
+    background: color-mix(in srgb, var(--ink) 92%, transparent);
+    backdrop-filter: blur(6px);
+    z-index: 5;
+  }
+  .masthead-in {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 28px;
+    height: 52px;
+  }
   .wordmark {
     font-family: var(--mono);
     font-size: 13px;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--text);
+    text-decoration: none;
+    white-space: nowrap;
   }
+  .nav { display: flex; gap: 20px; margin-left: auto; }
+  .nav a {
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 2px 0;
+    border-bottom: 1px solid transparent;
+    transition: color var(--step), border-color var(--step);
+  }
+  .nav a:hover { color: var(--text); }
+  .nav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--rule-lit); }
+
+  .shell { max-width: 1180px; margin: 0 auto; padding: 30px 24px 90px; }
 
   h1 {
-    font-family: var(--mono);
-    font-size: 27px;
-    font-weight: 500;
-    margin: 8px 0 4px;
-    letter-spacing: -0.01em;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    margin: 0 0 5px;
   }
+  .strap { color: var(--muted); margin: 0; max-width: 60ch; }
 
-  .strap { color: var(--muted); margin: 0; max-width: 62ch; }
+  /* Section labels stay sentence-case sans so that uppercase mono keeps
+     meaning exactly one thing on this page: a machine reached a verdict. */
+  .label {
+    font-size: 12px;
+    color: var(--faint);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .label a { color: var(--muted); text-decoration: none; }
+  .label a:hover { color: var(--text); }
 
   /* ---- controls ---- */
-  .controls { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+  .ask { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 
   input[type="text"] {
     flex: 1 1 340px;
@@ -62,131 +130,57 @@
     background: var(--panel);
     border: 1px solid var(--rule);
     color: var(--text);
-    font-family: var(--sans);
+    font-family: var(--ui);
     font-size: 14px;
     padding: 11px 13px;
     border-radius: 3px;
+    transition: border-color var(--step);
   }
-  input[type="text"]::placeholder { color: var(--muted); }
-  input[type="text"]:focus-visible,
-  button:focus-visible,
-  label:focus-within {
-    outline: 2px solid var(--text);
-    outline-offset: 2px;
-  }
+  input[type="text"]:hover { border-color: var(--rule-lit); }
+  input[type="text"]::placeholder { color: var(--faint); }
 
   button {
     background: var(--text);
     color: var(--ink);
-    border: 0;
+    border: 1px solid var(--text);
     border-radius: 3px;
-    padding: 11px 22px;
+    padding: 11px 24px;
     font-family: var(--mono);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    transition: opacity var(--step), transform var(--step);
   }
-  button[disabled] { opacity: 0.45; cursor: default; }
+  button:active { transform: translateY(1px); }
+  button[disabled] { opacity: 0.4; cursor: default; transform: none; }
 
-  .toggles { display: flex; gap: 18px; margin-top: 12px; color: var(--muted); font-size: 13px; }
-  .toggles label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  .ghost {
+    background: transparent;
+    color: var(--muted);
+    border-color: var(--rule);
+    font-weight: 500;
+    padding: 7px 13px;
+  }
+  .ghost:hover:not([disabled]) { color: var(--text); border-color: var(--rule-lit); }
+
+  .toggles { display: flex; gap: 20px; margin-top: 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+  .toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
   .toggles input { accent-color: var(--text); }
 
   /* ---- layout ---- */
   .board {
     display: grid;
-    grid-template-columns: minmax(320px, 400px) 1fr;
+    grid-template-columns: minmax(330px, 420px) minmax(0, 1fr);
     gap: 26px;
-    margin-top: 28px;
+    margin-top: 30px;
     align-items: start;
   }
-  @media (max-width: 860px) { .board { grid-template-columns: 1fr; } }
+  /* A grid item defaults to min-width:auto, so one long line of generated SQL
+     would widen the whole track and push the column off screen instead of
+     scrolling inside its own panel. */
+  .board > * { min-width: 0; }
+  @media (max-width: 900px) { .board { grid-template-columns: minmax(0, 1fr); } }
 
-  .col-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-
-  /* ---- the gate rail: the signature element ---- */
-  .rail { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
-
-  .gate { border-bottom: 1px solid var(--rule); background: var(--panel); }
-  .gate:last-child { border-bottom: 0; }
-
-  .gate-head {
-    display: grid;
-    grid-template-columns: 3px 1fr auto;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 16px 14px 0;
-  }
-
-  .bar { height: 100%; min-height: 40px; background: var(--rule); transition: background 180ms ease; }
-  .gate[data-state="running"] .bar { background: var(--muted); animation: pulse 1s ease-in-out infinite; }
-  .gate[data-state="pass"] .bar { background: var(--pass); }
-  .gate[data-state="fail"] .bar { background: var(--fail); }
-  .gate[data-state="escalate"] .bar { background: var(--escalate); }
-
-  @keyframes pulse { 50% { opacity: 0.35; } }
-  @media (prefers-reduced-motion: reduce) {
-    .gate[data-state="running"] .bar { animation: none; }
-    * { transition: none !important; }
-  }
-
-  .gate-name { font-family: var(--mono); font-size: 13px; }
-  .gate-why { color: var(--muted); font-size: 12px; margin-top: 2px; }
-
-  .verdict {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding-right: 16px;
-  }
-  .gate[data-state="pass"] .verdict { color: var(--pass); }
-  .gate[data-state="fail"] .verdict { color: var(--fail); }
-  .gate[data-state="escalate"] .verdict { color: var(--escalate); }
-
-  .findings { padding: 0 16px 15px 17px; display: none; }
-  .gate[data-state="fail"] .findings,
-  .gate[data-state="escalate"] .findings { display: block; }
-  /* While a repair is in flight the previous evidence stays on screen, dimmed.
-     Blanking it would hide the very thing the run is about to fix. */
-  .gate[data-state="running"] .findings { display: block; opacity: 0.4; }
-
-  .finding {
-    border-left: 2px solid var(--rule);
-    padding: 9px 0 9px 13px;
-    margin-top: 9px;
-    font-size: 13px;
-  }
-  .finding .msg { color: var(--text); }
-  .finding .locus { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 3px; word-break: break-all; }
-  .finding .fix { font-family: var(--mono); font-size: 12px; color: var(--escalate); margin-top: 5px; }
-
-  /* ---- attempt strip ---- */
-  .attempts { display: flex; gap: 8px; }
-  .chip {
-    font-family: var(--mono);
-    font-size: 11px;
-    border: 1px solid var(--rule);
-    border-radius: 999px;
-    padding: 2px 10px;
-    color: var(--muted);
-  }
-  .chip[data-state="pass"] { color: var(--pass); border-color: var(--pass); }
-  .chip[data-state="fail"] { color: var(--fail); border-color: var(--fail); }
-  .chip[data-state="escalate"] { color: var(--escalate); border-color: var(--escalate); }
-
-  /* ---- right column ---- */
   .panel {
     background: var(--panel);
     border: 1px solid var(--rule);
@@ -194,62 +188,238 @@
     padding: 16px 18px;
     margin-bottom: 18px;
   }
+  .panel:last-child { margin-bottom: 0; }
 
+  /* ------------------------------------------------------------------
+     Signature: the gate rail carries its own history.
+
+     Each gate is a row that changes verdict in place, and the small squares
+     beside it are that gate's result on every attempt so far. A whole run —
+     which gate failed, when, and whether the repair worked — is legible in
+     one object, with no separate widget and no abbreviations to decode.
+     ------------------------------------------------------------------ */
+  .rail { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+
+  .gate { border-bottom: 1px solid var(--rule); background: var(--panel); }
+  .gate:last-child { border-bottom: 0; }
+
+  .gate-head {
+    display: grid;
+    grid-template-columns: 3px 1fr auto auto;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 16px 13px 0;
+  }
+
+  .bar { align-self: stretch; min-height: 42px; background: var(--rule); transition: background var(--step); }
+  .gate[data-state="running"] .bar { background: var(--faint); animation: breathe 1.1s ease-in-out infinite; }
+  .gate[data-state="pass"] .bar { background: var(--pass); }
+  .gate[data-state="fail"] .bar { background: var(--fail); }
+  .gate[data-state="escalate"] .bar { background: var(--escalate); }
+  @keyframes breathe { 50% { opacity: 0.3; } }
+
+  .gate-name { font-family: var(--mono); font-size: 13px; }
+  .gate-why { color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+  .trail { display: flex; gap: 4px; }
+  .trail i {
+    width: 7px;
+    height: 7px;
+    border-radius: 1px;
+    background: var(--rule-lit);
+    font-style: normal;
+    transition: background var(--step);
+  }
+  .trail i[data-v="pass"] { background: var(--pass); }
+  .trail i[data-v="fail"] { background: var(--fail); }
+  .trail i[data-v="escalate"] { background: var(--escalate); }
+
+  .verdict {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-right: 16px;
+    min-width: 62px;
+    text-align: right;
+  }
+  .gate[data-state="running"] .verdict { color: var(--muted); }
+  .gate[data-state="pass"] .verdict { color: var(--pass); }
+  .gate[data-state="fail"] .verdict { color: var(--fail); }
+  .gate[data-state="escalate"] .verdict { color: var(--escalate); }
+
+  .findings { padding: 0 16px 14px 17px; display: none; }
+  .gate[data-state="fail"] .findings,
+  .gate[data-state="escalate"] .findings { display: block; }
+  /* While a repair is in flight the previous evidence stays on screen, dimmed.
+     Blanking it would hide the very thing the run is about to fix. */
+  .gate[data-state="running"] .findings { display: block; opacity: 0.4; }
+
+  .finding {
+    border-left: 2px solid var(--rule-lit);
+    padding: 8px 0 8px 13px;
+    margin-top: 9px;
+    font-size: 13px;
+  }
+  .finding .msg { color: var(--text); }
+  .finding .locus { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+  .finding .fix { font-family: var(--mono); font-size: 12px; color: var(--escalate); margin-top: 5px; overflow-wrap: anywhere; }
+
+  /* ---- outcome ---- */
+  .outcome {
+    border: 1px solid var(--rule);
+    border-left-width: 3px;
+    border-radius: 4px;
+    padding: 15px 18px;
+    margin-bottom: 18px;
+  }
+  .outcome .head { font-family: var(--mono); font-size: 15px; }
+  .outcome[data-state="pass"] { border-left-color: var(--pass); }
+  .outcome[data-state="pass"] .head { color: var(--pass); }
+  .outcome[data-state="fail"] { border-left-color: var(--fail); }
+  .outcome[data-state="fail"] .head { color: var(--fail); }
+  .outcome[data-state="escalate"] { border-left-color: var(--escalate); }
+  .outcome[data-state="escalate"] .head { color: var(--escalate); }
+  .outcome .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+
+  /* ---- machine text ---- */
   pre {
     font-family: var(--mono);
     font-size: 12.5px;
-    line-height: 1.65;
+    line-height: 1.7;
     margin: 0;
     white-space: pre;
     overflow-x: auto;
+    max-width: 100%;
     color: var(--text);
+    tab-size: 2;
   }
 
-  .log { font-family: var(--mono); font-size: 12.5px; }
-  .log-row { display: flex; gap: 12px; padding: 3px 0; color: var(--muted); }
-  .log-row .t { color: var(--rule); }
+  .log { font-family: var(--mono); font-size: 12.5px; max-height: 320px; overflow-y: auto; }
+  .log-row { display: flex; gap: 12px; padding: 2px 0; color: var(--muted); }
+  .log-row .t { color: var(--faint); flex: none; }
   .log-row.key { color: var(--text); }
 
-  .tables { display: flex; flex-wrap: wrap; gap: 7px; }
-  .table-pill {
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill {
     font-family: var(--mono);
     font-size: 12px;
     background: var(--panel-2);
     border: 1px solid var(--rule);
     border-radius: 3px;
-    padding: 4px 9px;
+    padding: 3px 9px;
   }
-  .table-pill span { color: var(--muted); }
+  .pill span { color: var(--muted); }
 
-  .outcome {
-    font-family: var(--mono);
-    font-size: 15px;
-    padding: 15px 18px;
-    border: 1px solid var(--rule);
+  /* ---- run history ---- */
+  .tally { display: flex; gap: 18px; font-size: 12px; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
+  .tally b { font-family: var(--mono); font-weight: 600; color: var(--text); }
+
+  .runs { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .run-row {
+    display: grid;
+    grid-template-columns: 3px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 0;
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+    text-decoration: none;
+    color: inherit;
+    transition: background var(--step);
+  }
+  .run-row:last-child { border-bottom: 0; }
+  .run-row:hover { background: var(--panel-2); }
+  .run-row .edge { align-self: stretch; min-height: 46px; background: var(--rule); }
+  .run-row[data-state="pass"] .edge { background: var(--pass); }
+  .run-row[data-state="fail"] .edge { background: var(--fail); }
+  .run-row[data-state="escalate"] .edge { background: var(--escalate); }
+  .run-row[data-state="error"] .edge { background: var(--rule-lit); }
+  .run-task { font-size: 13px; padding: 10px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run-meta { font-family: var(--mono); font-size: 11.5px; color: var(--muted); padding-right: 14px; white-space: nowrap; }
+
+  /* ---- benchmark ---- */
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); }
+  th { font-size: 12px; color: var(--faint); font-weight: 500; }
+  td.num { font-family: var(--mono); text-align: right; }
+  tr:last-child td { border-bottom: 0; }
+  tr.best td { color: var(--pass); }
+
+  .matrix { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .mrow { display: grid; grid-template-columns: 1fr repeat(3, 120px); border-bottom: 1px solid var(--rule); align-items: center; background: var(--panel); }
+  .mrow:last-child { border-bottom: 0; }
+  .mrow.head { background: transparent; }
+  .mrow.head > * { font-size: 12px; color: var(--faint); }
+  .mrow.head > *:not(:first-child) { text-align: center; }
+  .mrow > * { padding: 10px 14px; font-size: 13px; }
+  .mrow > .arm { text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; }
+  .arm[data-v="shipped"] { color: var(--pass); }
+  .arm[data-v="blocked"] { color: var(--fail); }
+  .arm[data-v="escalated"] { color: var(--escalate); }
+  @media (max-width: 700px) {
+    .mrow { grid-template-columns: 1fr; gap: 0; padding-bottom: 6px; }
+    .mrow.head { display: none; }
+    .mrow > .arm { text-align: left; padding-top: 0; padding-bottom: 2px; }
+    /* The header row is gone at this width, so each verdict has to name the
+       arm it belongs to or the three values mean nothing. */
+    .mrow > .arm::before {
+      content: attr(data-arm) " ";
+      color: var(--faint);
+      letter-spacing: 0;
+      text-transform: none;
+      font-family: var(--ui);
+      font-size: 12px;
+    }
+  }
+
+  /* ---- states ---- */
+  .empty {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 26px 18px;
+    border: 1px dashed var(--rule);
     border-radius: 4px;
-    margin-bottom: 18px;
+    text-align: center;
   }
-  .outcome[data-state="pass"] { border-color: var(--pass); color: var(--pass); }
-  .outcome[data-state="fail"] { border-color: var(--fail); color: var(--fail); }
-  .outcome[data-state="escalate"] { border-color: var(--escalate); color: var(--escalate); }
-  .outcome .sub { color: var(--muted); font-size: 12.5px; margin-top: 5px; font-family: var(--sans); }
+  .empty b { display: block; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+  /* Inside a panel the dashed box would be a card within a card, so the empty
+     state there is just the sentence. */
+  .panel .empty { border: 0; padding: 4px 0; text-align: left; }
+  .note { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+  .fail-note { color: var(--fail); }
 
-  .empty { color: var(--muted); font-size: 13px; }
   [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
 </head>
 <body>
+
+<div class="masthead">
+  <div class="masthead-in">
+    <a class="wordmark" href="/" data-link>Groundskeeper</a>
+    <nav class="nav">
+      <a href="/" data-link data-nav="console">Console</a>
+      <a href="/runs/" data-link data-nav="records">Records</a>
+      <a href="/benchmark" data-link data-nav="benchmark">Benchmark</a>
+    </nav>
+  </div>
+</div>
+
 <div class="shell">
 
-  <header>
-    <div class="wordmark">Groundskeeper</div>
+  <!-- ============================ console ============================ -->
+  <main id="view-console" hidden>
     <h1>Verification console</h1>
     <p class="strap">
       Every generated model is checked against the catalog before anyone sees it.
       Watch each gate decide.
     </p>
 
-    <div class="controls">
+    <div class="ask">
       <input id="task" type="text" aria-label="What should the model compute?"
              value="total revenue and order count by region for the last 30 days"
              placeholder="What should the model compute?">
@@ -259,41 +429,68 @@
       <label><input type="checkbox" id="grounded" checked> Use catalog schemas</label>
       <label><input type="checkbox" id="writeback"> Register result in DataHub</label>
     </div>
-  </header>
 
-  <div class="board">
-    <section>
-      <div class="col-label">
-        <span>Gates</span>
-        <span class="attempts" id="attempts"></span>
-      </div>
-      <div class="rail" id="rail"></div>
-    </section>
+    <div class="board">
+      <section>
+        <div class="label"><span>Gates</span><span id="attempt-count"></span></div>
+        <div class="rail" id="rail"></div>
 
-    <section>
-      <div class="col-label"><span>Run</span></div>
+        <div class="label" style="margin-top:26px"><span>Recent runs</span>
+          <a href="/runs/" data-link>All records</a>
+        </div>
+        <div id="recent"></div>
+      </section>
 
-      <div class="outcome" id="outcome" hidden></div>
+      <section>
+        <div class="label"><span>Run</span><span id="run-id" class="sr"></span></div>
 
-      <div class="panel" id="catalog-panel" hidden>
-        <div class="col-label"><span>Grounded on</span></div>
-        <div class="tables" id="tables"></div>
-      </div>
+        <div class="outcome" id="outcome" hidden></div>
 
-      <div class="panel" id="sql-panel" hidden>
-        <div class="col-label"><span id="sql-label">Generated SQL</span></div>
-        <pre id="sql"></pre>
-      </div>
+        <div class="panel" id="catalog-panel" hidden>
+          <div class="label"><span>Grounded on</span></div>
+          <div class="pills" id="tables"></div>
+        </div>
 
-      <div class="panel">
-        <div class="col-label"><span>Activity</span></div>
-        <div class="log" id="log"><div class="empty">Idle. Run a task to begin.</div></div>
-      </div>
-    </section>
-  </div>
+        <div class="panel" id="sql-panel" hidden>
+          <div class="label"><span id="sql-label">Generated SQL</span></div>
+          <pre id="sql"></pre>
+        </div>
+
+        <div class="panel">
+          <div class="label"><span>Activity</span></div>
+          <div class="log" id="log"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ============================ records ============================ -->
+  <main id="view-records" hidden>
+    <h1>Records</h1>
+    <p class="strap">Every run is kept. Open one to see what was checked, what was found, and the SQL that came out.</p>
+    <div id="records-body" style="margin-top:26px"></div>
+  </main>
+
+  <!-- ============================ one record ========================== -->
+  <main id="view-record" hidden>
+    <div id="record-body"></div>
+  </main>
+
+  <!-- =========================== benchmark =========================== -->
+  <main id="view-benchmark" hidden>
+    <h1>Benchmark</h1>
+    <p class="strap">
+      Eight dbt tasks against a live DataHub, each arm judged by executing the SQL rather than reading it.
+      Reproduce it with <code style="font-family:var(--mono)">scripts/benchmark.py</code>.
+    </p>
+    <div id="benchmark-body" style="margin-top:26px"></div>
+  </main>
+
 </div>
 
 <script>
+"use strict";
+
 const GATES = [
   ["sql_analysis",    "Parses the SQL and resolves each column to a dataset"],
   ["field_existence", "Every column must exist in the catalog schema"],
@@ -302,161 +499,328 @@ const GATES = [
 ];
 
 const $ = (id) => document.getElementById(id);
-const rail = $("rail"), logEl = $("log"), attemptsEl = $("attempts");
-let stream = null, logged = false;
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;   // always textContent: SQL and
+  return n;                                        // findings carry model output
+};
 
-function buildRail() {
-  rail.innerHTML = "";
+const VERDICT_COPY = {
+  pass:     ["Shipped", "Every gate passed. This model is safe to open a PR with."],
+  fail:     ["Blocked", "Nothing that fails a gate is handed to a reviewer."],
+  escalate: ["Needs a human", "The catalog is missing metadata this model depends on. Retrying cannot fix that."],
+  error:    ["Run did not finish", "The pipeline stopped before it could reach a verdict."],
+};
+
+function ago(iso) {
+  if (!iso) return "";
+  const then = new Date(iso), s = (Date.now() - then.getTime()) / 1000;
+  if (!isFinite(s)) return "";
+  if (s < 90) return "just now";
+  if (s < 5400) return Math.round(s / 60) + "m ago";
+  if (s < 172800) return Math.round(s / 3600) + "h ago";
+  return Math.round(s / 86400) + "d ago";
+}
+const secs = (ms) => (ms >= 1000 ? Math.round(ms / 1000) + "s" : ms + "ms");
+
+/* ------------------------------- routing ------------------------------- */
+
+const VIEWS = ["console", "records", "record", "benchmark"];
+
+function show(name) {
+  for (const v of VIEWS) $("view-" + v).hidden = v !== name;
+  const nav = name === "record" ? "records" : name;
+  for (const a of document.querySelectorAll("[data-nav]")) {
+    if (a.dataset.nav === nav) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  }
+  window.scrollTo(0, 0);
+}
+
+function route() {
+  const path = location.pathname;
+  if (path === "/benchmark") { show("benchmark"); renderBenchmark(); return; }
+  if (path === "/runs" || path === "/runs/") { show("records"); renderRecords(); return; }
+  if (path.startsWith("/runs/")) { show("record"); renderRecord(path.slice(6)); return; }
+  show("console");
+  loadRecent();
+  loadCatalog();
+}
+
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a[data-link]");
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  history.pushState({}, "", a.getAttribute("href"));
+  route();
+});
+window.addEventListener("popstate", route);
+
+/* ---------------------------- shared pieces ---------------------------- */
+
+function emptyState(head, body) {
+  const box = el("div", "empty");
+  box.appendChild(el("b", null, head));
+  box.appendChild(document.createTextNode(body));
+  return box;
+}
+
+function findingNode(f) {
+  const node = el("div", "finding");
+  node.appendChild(el("div", "msg", f.message || ""));
+  if (f.locus) node.appendChild(el("div", "locus", f.locus));
+  if (f.suggestion) node.appendChild(el("div", "fix", f.suggestion));
+  return node;
+}
+
+/** The gate rail, with each gate's result on every attempt beside it. */
+function buildRail(into) {
+  into.textContent = "";
   for (const [name, why] of GATES) {
-    const el = document.createElement("div");
-    el.className = "gate";
-    el.dataset.state = "idle";
-    el.dataset.gate = name;
-    el.innerHTML = `
-      <div class="gate-head">
-        <div class="bar"></div>
-        <div>
-          <div class="gate-name">${name}</div>
-          <div class="gate-why">${why}</div>
-        </div>
-        <div class="verdict">waiting</div>
-      </div>
-      <div class="findings"></div>`;
-    rail.appendChild(el);
+    const g = el("div", "gate");
+    g.dataset.state = "idle";
+    g.dataset.gate = name;
+
+    const head = el("div", "gate-head");
+    head.appendChild(el("div", "bar"));
+
+    const who = el("div");
+    who.appendChild(el("div", "gate-name", name));
+    who.appendChild(el("div", "gate-why", why));
+    head.appendChild(who);
+
+    head.appendChild(el("div", "trail"));
+    head.appendChild(el("div", "verdict", "waiting"));
+
+    g.appendChild(head);
+    g.appendChild(el("div", "findings"));
+    into.appendChild(g);
   }
 }
 
-function markRunning() {
-  // Deliberately keeps each gate's previous findings on screen (dimmed) so the
-  // failure being repaired stays visible until its new verdict replaces it.
-  for (const el of rail.children) {
-    el.dataset.state = "running";
-    el.querySelector(".verdict").textContent = "checking";
+function setGate(rail, gate, verdict, findings, attempt) {
+  const g = rail.querySelector(`[data-gate="${CSS.escape(gate)}"]`);
+  if (!g) return;
+  g.dataset.state = verdict;
+  g.querySelector(".verdict").textContent = verdict;
+
+  const box = g.querySelector(".findings");
+  box.textContent = "";
+  for (const f of findings || []) box.appendChild(findingNode(f));
+
+  if (attempt) {
+    const trail = g.querySelector(".trail");
+    let cell = trail.querySelector(`[data-n="${attempt}"]`);
+    if (!cell) {
+      cell = el("i");
+      cell.dataset.n = attempt;
+      cell.title = `attempt ${attempt}`;
+      trail.appendChild(cell);
+    }
+    cell.dataset.v = verdict;
   }
 }
+
+function markRunning(rail) {
+  // Keeps each gate's previous findings on screen, dimmed, so the failure being
+  // repaired stays visible until its new verdict replaces it.
+  for (const g of rail.children) {
+    g.dataset.state = "running";
+    g.querySelector(".verdict").textContent = "checking";
+  }
+}
+
+function runRow(r) {
+  const a = el("a", "run-row");
+  a.href = "/runs/" + r.id;
+  a.dataset.link = "";
+  a.dataset.state = r.verdict;
+  a.appendChild(el("div", "edge"));
+  a.appendChild(el("div", "run-task", r.task || "(no task)"));
+  const bits = [ago(r.started)];
+  if (r.attempts > 1) bits.push(r.attempts + " attempts");
+  if (!r.grounded) bits.push("no catalog");
+  if (r.wrote_back) bits.push("registered");
+  a.appendChild(el("div", "run-meta", bits.join("  ·  ")));
+  return a;
+}
+
+/* ------------------------------- console ------------------------------- */
+
+const rail = $("rail"), logEl = $("log");
+let stream = null, currentRunId = null, attemptsSeen = 0;
 
 function log(text, key) {
-  if (!logged) { logEl.innerHTML = ""; logged = true; }
-  const row = document.createElement("div");
-  row.className = "log-row" + (key ? " key" : "");
+  const row = el("div", "log-row" + (key ? " key" : ""));
   const now = new Date();
-  const t = [now.getHours(), now.getMinutes(), now.getSeconds()]
-    .map((n) => String(n).padStart(2, "0")).join(":");
-  row.innerHTML = `<span class="t">${t}</span><span>${text}</span>`;
+  row.appendChild(el("span", "t",
+    [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map((n) => String(n).padStart(2, "0")).join(":")));
+  row.appendChild(el("span", null, text));
   logEl.appendChild(row);
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-function renderFindings(el, findings) {
-  const box = el.querySelector(".findings");
-  box.innerHTML = "";
-  for (const f of findings || []) {
-    const node = document.createElement("div");
-    node.className = "finding";
-    const bits = [`<div class="msg">${f.message}</div>`];
-    if (f.locus) bits.push(`<div class="locus">${f.locus}</div>`);
-    if (f.suggestion) bits.push(`<div class="fix">${f.suggestion}</div>`);
-    node.innerHTML = bits.join("");
-    box.appendChild(node);
+function idleLog() {
+  logEl.textContent = "";
+  logEl.appendChild(el("div", "empty", "Nothing running. Ask for a model above."));
+}
+
+function paintTables(box, tables) {
+  box.textContent = "";
+  for (const t of tables) {
+    const p = el("span", "pill", t.name + " ");
+    p.appendChild(el("span", null, t.columns + " cols"));
+    box.appendChild(p);
   }
 }
 
-function setAttempt(n, state) {
-  let chip = attemptsEl.querySelector(`[data-n="${n}"]`);
-  if (!chip) {
-    chip = document.createElement("span");
-    chip.className = "chip";
-    chip.dataset.n = n;
-    chip.textContent = "attempt " + n;
-    attemptsEl.appendChild(chip);
+/** The catalog is shown before anyone asks for anything, because "what can I
+    ask about?" is a visitor's first question and an empty column answers it
+    with nothing. */
+async function loadCatalog() {
+  const panel = $("catalog-panel"), box = $("tables");
+  panel.hidden = false;
+  box.textContent = "";
+  box.appendChild(el("span", "note", "Reading the catalog…"));
+  try {
+    const res = await fetch("/api/catalog");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "unavailable");
+    paintTables(box, data.tables || []);
+  } catch (err) {
+    box.textContent = "";
+    const note = el("p", "note fail-note",
+      "Could not reach DataHub, so nothing can be grounded yet.");
+    box.appendChild(note);
+    box.appendChild(el("p", "note",
+      "Start it with: datahub docker quickstart, then reload."));
   }
-  if (state) chip.dataset.state = state;
+}
+
+async function loadRecent() {
+  const box = $("recent");
+  try {
+    const data = await (await fetch("/api/runs")).json();
+    const runs = (data.runs || []).slice(0, 6);
+    box.textContent = "";
+    if (!runs.length) {
+      box.appendChild(emptyState("No runs yet", "The first run you start will be kept here."));
+      return;
+    }
+    const list = el("div", "runs");
+    for (const r of runs) list.appendChild(runRow(r));
+    box.appendChild(list);
+  } catch {
+    box.textContent = "";
+    box.appendChild(el("div", "note fail-note", "Could not reach the server to load history."));
+  }
 }
 
 function handle(ev) {
   switch (ev.kind) {
-    case "run_start":
-      log(`Task: ${ev.task}`, true);
+    case "run_id":
+      currentRunId = ev.id;
+      $("run-id").textContent = ev.id;
       break;
-    case "catalog": {
+
+    case "run_start":
+      log("Task: " + ev.task, true);
+      break;
+
+    case "catalog":
       $("catalog-panel").hidden = false;
-      const box = $("tables");
-      box.innerHTML = "";
-      for (const t of ev.tables) {
-        const pill = document.createElement("span");
-        pill.className = "table-pill";
-        pill.innerHTML = `${t.name} <span>${t.columns} cols</span>`;
-        box.appendChild(pill);
-      }
+      paintTables($("tables"), ev.tables);
       log(`Loaded ${ev.tables.length} table schemas from DataHub`, true);
       break;
-    }
+
     case "attempt_start":
-      setAttempt(ev.attempt);
+      attemptsSeen = ev.attempt;
+      $("attempt-count").textContent =
+        ev.attempt > 1 ? `attempt ${ev.attempt}` : "";
       log(ev.repairing ? `Attempt ${ev.attempt} — repairing` : `Attempt ${ev.attempt}`, true);
       break;
+
     case "generated":
       $("sql-panel").hidden = false;
       $("sql").textContent = ev.sql;
-      markRunning();
+      markRunning(rail);
       log("Model returned SQL, verifying");
       break;
-    case "gate": {
-      const el = rail.querySelector(`[data-gate="${ev.gate}"]`);
-      if (el) {
-        el.dataset.state = ev.verdict;
-        el.querySelector(".verdict").textContent = ev.verdict;
-        renderFindings(el, ev.findings);
-      }
+
+    case "gate":
+      setGate(rail, ev.gate, ev.verdict, ev.findings, ev.attempt);
       if (ev.verdict !== "pass") {
         const first = (ev.findings || [])[0];
         log(`${ev.gate}: ${ev.verdict}${first ? " — " + first.message : ""}`);
       }
       break;
-    }
-    case "attempt_end":
-      setAttempt(ev.attempt, ev.verdict);
-      break;
+
     case "written_back":
       log(`Registered ${ev.urn} with ${ev.upstreams} upstream edges`, true);
       break;
+
     case "run_end": {
       const box = $("outcome");
       box.hidden = false;
       box.dataset.state = ev.verdict;
-      const headline = ev.shipped
-        ? `Shipped after ${ev.attempts} attempt${ev.attempts > 1 ? "s" : ""}`
-        : ev.verdict === "escalate"
-          ? "Escalated to a human"
-          : "Rejected";
-      const sub = ev.shipped
-        ? "Every gate passed. This model is safe to open a PR with."
-        : ev.verdict === "escalate"
-          ? "The catalog is missing metadata this model depends on. Retrying cannot fix that."
-          : "Nothing that fails a gate is handed to a reviewer.";
-      box.innerHTML = `${headline}<div class="sub">${sub}</div>`;
-      if (ev.sql) { $("sql-label").textContent = "Final SQL"; $("sql").textContent = ev.sql; }
-      log(headline, true);
+      box.textContent = "";
+      let [head, sub] = VERDICT_COPY[ev.verdict] || VERDICT_COPY.fail;
+      if (ev.shipped) {
+        head = ev.attempts > 1
+          ? `Shipped after ${ev.attempts} attempts`
+          : "Shipped on the first attempt";
+      }
+      box.appendChild(el("div", "head", head));
+      box.appendChild(el("div", "sub", sub));
+      if (currentRunId) {
+        const actions = el("div", "actions");
+        const open = el("a");
+        open.href = "/runs/" + currentRunId;
+        open.dataset.link = "";
+        const btn = el("button", "ghost", "Open the record");
+        open.appendChild(btn);
+        actions.appendChild(open);
+        box.appendChild(actions);
+      }
+      // `final` is the last attempt, shipped or not, so a blocked run ends
+      // holding SQL that was rejected. Labelling that "final" would read as
+      // an endorsement of the exact query the gates just refused.
+      if (ev.sql) {
+        $("sql-label").textContent = ev.shipped ? "Final SQL" : "Rejected SQL";
+        $("sql").textContent = ev.sql;
+      }
+      log(head, true);
       break;
     }
+
     case "error":
-      log(`Error: ${ev.message}`, true);
+      log("Error: " + ev.message, true);
       break;
   }
 }
 
+function stopStream() {
+  if (stream) { stream.close(); stream = null; }
+  $("run").disabled = false;
+  $("run").textContent = "Run";
+}
+
 function run() {
   const task = $("task").value.trim();
-  if (!task) return;
+  if (!task) { $("task").focus(); return; }
   if (stream) stream.close();
 
-  buildRail();
-  attemptsEl.innerHTML = "";
+  buildRail(rail);
+  currentRunId = null;
+  attemptsSeen = 0;
+  $("attempt-count").textContent = "";
+  $("run-id").textContent = "";
   $("outcome").hidden = true;
   $("sql-panel").hidden = true;
   $("sql-label").textContent = "Generated SQL";
-  logEl.innerHTML = "";
-  logged = false;
+  logEl.textContent = "";
   $("run").disabled = true;
   $("run").textContent = "Running";
 
@@ -468,26 +832,355 @@ function run() {
   stream = new EventSource("/api/run?" + params);
   stream.onmessage = (msg) => {
     const ev = JSON.parse(msg.data);
-    if (ev.kind === "done") {
-      stream.close();
-      stream = null;
-      $("run").disabled = false;
-      $("run").textContent = "Run";
-      return;
-    }
+    if (ev.kind === "done") { stopStream(); loadRecent(); return; }
     handle(ev);
   };
   stream.onerror = () => {
-    log("Stream closed", true);
-    if (stream) { stream.close(); stream = null; }
-    $("run").disabled = false;
-    $("run").textContent = "Run";
+    log("The stream closed before the run finished.", true);
+    stopStream();
+    loadRecent();
   };
 }
 
-buildRail();
+/* ------------------------------- records ------------------------------- */
+
+async function renderRecords() {
+  const box = $("records-body");
+  box.textContent = "Loading records…";
+  box.className = "note";
+  let data;
+  try {
+    data = await (await fetch("/api/runs")).json();
+  } catch {
+    box.textContent = "";
+    box.className = "";
+    box.appendChild(emptyState("Cannot reach the server",
+      "Start it with scripts/console.py, then reload this page."));
+    return;
+  }
+  box.textContent = "";
+  box.className = "";
+
+  const runs = data.runs || [];
+  if (!runs.length) {
+    box.appendChild(emptyState("No runs yet",
+      "Ask for a model on the console and it will be recorded here."));
+    return;
+  }
+
+  const t = data.tally || {};
+  const tally = el("div", "tally");
+  const stat = (n, word) => {
+    const s = el("span");
+    s.appendChild(el("b", null, String(n)));
+    s.appendChild(document.createTextNode(" " + word));
+    return s;
+  };
+  tally.appendChild(stat(t.total, t.total === 1 ? "run" : "runs"));
+  tally.appendChild(stat(t.shipped, "shipped"));
+  tally.appendChild(stat(t.first_try, "on the first attempt"));
+  if (t.blocked) tally.appendChild(stat(t.blocked, "blocked"));
+  if (t.escalated) tally.appendChild(stat(t.escalated, "escalated"));
+  box.appendChild(tally);
+
+  const list = el("div", "runs");
+  for (const r of runs) list.appendChild(runRow(r));
+  box.appendChild(list);
+}
+
+/* ----------------------------- one record ------------------------------ */
+
+function prMarkdown(rec) {
+  const lines = [
+    "**Groundskeeper** verified this model against the DataHub catalog.",
+    "",
+    `- Task: ${rec.task}`,
+    `- Verdict: ${rec.shipped ? "shipped" : rec.verdict}` +
+      ` after ${rec.attempts.length} attempt${rec.attempts.length > 1 ? "s" : ""}`,
+    `- Grounded on: ${(rec.catalog || []).map((t) => t.name).join(", ") || "no catalog"}`,
+  ];
+  if (rec.writeback) lines.push(`- Registered in DataHub with ${rec.writeback.upstreams} upstream edges`);
+  lines.push("", "| attempt | " + GATES.map((g) => g[0]).join(" | ") + " |");
+  lines.push("|---|" + GATES.map(() => "---|").join(""));
+  for (const a of rec.attempts) {
+    const by = Object.fromEntries((a.gates || []).map((g) => [g.gate, g.verdict]));
+    lines.push(`| ${a.n} | ` + GATES.map((g) => by[g[0]] || "-").join(" | ") + " |");
+  }
+  for (const a of rec.attempts) {
+    for (const g of a.gates || []) {
+      for (const f of g.findings || []) {
+        lines.push("", `> \`${g.gate}\` on attempt ${a.n}: ${f.message}` +
+          (f.suggestion ? ` — ${f.suggestion}` : ""));
+      }
+    }
+  }
+  if (rec.final_sql) {
+    // Never paste rejected SQL into a PR under a heading that implies it passed.
+    lines.push("", rec.shipped ? "```sql" : "Last rejected query, for reference:\n\n```sql",
+               rec.final_sql, "```");
+  }
+  return lines.join("\n");
+}
+
+async function renderRecord(id) {
+  const box = $("record-body");
+  box.textContent = "";
+  box.appendChild(el("p", "note", "Loading the record…"));
+
+  let rec;
+  try {
+    const res = await fetch("/api/runs/" + encodeURIComponent(id));
+    if (!res.ok) throw new Error("missing");
+    rec = await res.json();
+  } catch {
+    box.textContent = "";
+    box.appendChild(el("h1", null, "No such record"));
+    box.appendChild(emptyState("This run was not found",
+      "It may have been cleared from the runs directory. The console lists everything still kept."));
+    return;
+  }
+
+  box.textContent = "";
+  const [head, sub] = VERDICT_COPY[rec.verdict] || VERDICT_COPY.fail;
+
+  box.appendChild(el("h1", null, rec.task));
+  const meta = el("p", "strap");
+  meta.textContent = [
+    rec.shipped
+      ? `Shipped after ${rec.attempts.length} attempt${rec.attempts.length > 1 ? "s" : ""}`
+      : head,
+    rec.grounded ? "grounded on the catalog" : "run without catalog schemas",
+    secs(rec.duration_ms || 0),
+    ago(rec.started),
+  ].filter(Boolean).join("  ·  ");
+  box.appendChild(meta);
+
+  const outcome = el("div", "outcome");
+  outcome.dataset.state = rec.verdict;
+  outcome.style.marginTop = "22px";
+  outcome.appendChild(el("div", "head", rec.shipped ? "Shipped" : head));
+  outcome.appendChild(el("div", "sub", sub));
+
+  const actions = el("div", "actions");
+  // A blocked run has nothing to open a pull request with, so the button says
+  // what it actually gives you.
+  const copyLabel = rec.shipped ? "Copy for a pull request" : "Copy the findings";
+  const copy = el("button", "ghost", copyLabel);
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(prMarkdown(rec));
+      copy.textContent = "Copied";
+      setTimeout(() => { copy.textContent = copyLabel; }, 1600);
+    } catch {
+      copy.textContent = "Clipboard blocked. Select the text below instead.";
+    }
+  });
+  actions.appendChild(copy);
+  if (rec.writeback && rec.writeback.urn) {
+    const link = el("a");
+    link.href = "http://localhost:9002/dataset/" + encodeURIComponent(rec.writeback.urn);
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.appendChild(el("button", "ghost", "Open in DataHub"));
+    actions.appendChild(link);
+  }
+  outcome.appendChild(actions);
+  box.appendChild(outcome);
+
+  const board = el("div", "board");
+
+  // left: the same rail, replayed to its final state, trail intact
+  const left = el("section");
+  const gl = el("div", "label");
+  gl.appendChild(el("span", null, "Gates"));
+  // The caption belongs beside the squares it explains, not below a long rail.
+  gl.appendChild(el("span", null,
+    (rec.attempts || []).length > 1
+      ? "one square per attempt, oldest first"
+      : "one attempt"));
+  left.appendChild(gl);
+  const recRail = el("div", "rail");
+  buildRail(recRail);
+  for (const a of rec.attempts || []) {
+    for (const g of a.gates || []) setGate(recRail, g.gate, g.verdict, g.findings, a.n);
+  }
+  left.appendChild(recRail);
+  board.appendChild(left);
+
+  // right: what it read, what it produced, what it registered
+  const right = el("section");
+
+  if ((rec.catalog || []).length) {
+    const p = el("div", "panel");
+    const l = el("div", "label");
+    // On an ungrounded run the model never saw these schemas but the gates
+    // still checked against them. Calling that "grounded on" would contradict
+    // the line above it, and would overstate what the model was given.
+    l.appendChild(el("span", null, rec.grounded ? "Grounded on" : "Checked against"));
+    p.appendChild(l);
+    const pills = el("div", "pills");
+    for (const t of rec.catalog) {
+      const pill = el("span", "pill", t.name + " ");
+      pill.appendChild(el("span", null, t.columns + " cols"));
+      pills.appendChild(pill);
+    }
+    p.appendChild(pills);
+    if (!rec.grounded) {
+      p.appendChild(el("p", "note",
+        "The model was not shown these schemas. The gates used them anyway, which is how the defects below were caught."));
+    }
+    right.appendChild(p);
+  }
+
+  if (rec.final_sql) {
+    const p = el("div", "panel");
+    const l = el("div", "label");
+    l.appendChild(el("span", null, rec.shipped ? "Final SQL" : "Rejected SQL"));
+    p.appendChild(l);
+    p.appendChild(el("pre", null, rec.final_sql));
+    if (!rec.shipped) {
+      p.appendChild(el("p", "note",
+        "This is the last query the model produced, not a result. It failed a gate and was never handed on."));
+    }
+    right.appendChild(p);
+  }
+
+  if (rec.writeback) {
+    const p = el("div", "panel");
+    const l = el("div", "label"); l.appendChild(el("span", null, "Registered in DataHub"));
+    p.appendChild(l);
+    p.appendChild(el("pre", null, rec.writeback.urn));
+    p.appendChild(el("p", "note",
+      `${rec.writeback.upstreams} upstream edge${rec.writeback.upstreams === 1 ? "" : "s"} derived from the parsed SQL` +
+      ((rec.writeback.tags || []).length ? `, tagged ${rec.writeback.tags.join(", ")}` : ", no sensitivity inherited")));
+    right.appendChild(p);
+  }
+
+  if (rec.error) {
+    const p = el("div", "panel");
+    const l = el("div", "label"); l.appendChild(el("span", null, "Error"));
+    p.appendChild(l);
+    p.appendChild(el("pre", null, rec.error));
+    right.appendChild(p);
+  }
+
+  board.appendChild(right);
+  box.appendChild(board);
+}
+
+/* ------------------------------ benchmark ------------------------------ */
+
+// Long name for the summary, short one for the matrix header, which has a
+// column to fit into rather than a sentence to be.
+const ARMS = [
+  ["ungrounded", "Table names only, no catalog", "No catalog"],
+  ["grounded",   "With DataHub schemas",         "Schemas"],
+  ["verified",   "With verification and repair", "Verified"],
+];
+
+async function renderBenchmark() {
+  const box = $("benchmark-body");
+  box.textContent = "";
+  box.appendChild(el("p", "note", "Loading results…"));
+
+  let data;
+  try {
+    const res = await fetch("/api/benchmark");
+    if (!res.ok) throw new Error("missing");
+    data = await res.json();
+  } catch {
+    box.textContent = "";
+    box.appendChild(emptyState("No results on disk",
+      "Run scripts/benchmark.py to produce examples/benchmark.json, then reload."));
+    return;
+  }
+
+  box.textContent = "";
+
+  // summary
+  const wrap = el("div", "panel");
+  const l = el("div", "label"); l.appendChild(el("span", null, "Summary"));
+  wrap.appendChild(l);
+
+  const table = el("table");
+  const thead = el("thead"), hr = el("tr");
+  for (const h of ["Agent", "First-try correct", "Shipped"]) {
+    const th = el("th", null, h);
+    if (h !== "Agent") th.style.textAlign = "right";
+    hr.appendChild(th);
+  }
+  thead.appendChild(hr);
+  table.appendChild(thead);
+
+  const tbody = el("tbody");
+  for (const [key, name] of ARMS) {
+    const s = (data.summary || {})[key];
+    if (!s) continue;
+    const tr = el("tr");
+    if (key === "verified") tr.className = "best";
+    tr.appendChild(el("td", null, name));
+    tr.appendChild(el("td", "num", `${s.first_attempt_clean}/${s.tasks} (${s.first_attempt_rate}%)`));
+    tr.appendChild(el("td", "num", `${s.shipped}/${s.tasks} (${s.shipped_rate}%)`));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  wrap.appendChild(el("p", "note",
+    "The grounded arm is the verified arm's own first attempt, not a separate generation, so the comparison carries no sampling noise."));
+  box.appendChild(wrap);
+
+  // per task: the evidence behind the summary
+  const byTask = new Map();
+  for (const r of data.runs || []) {
+    if (!byTask.has(r.task)) byTask.set(r.task, {});
+    byTask.get(r.task)[r.arm] = r;
+  }
+
+  const l2 = el("div", "label");
+  l2.appendChild(el("span", null, "Every task"));
+  l2.appendChild(el("span", null, `${byTask.size} tasks`));
+  box.appendChild(l2);
+
+  const matrix = el("div", "matrix");
+  const head = el("div", "mrow head");
+  head.appendChild(el("div", null, "Task"));
+  for (const [, , short] of ARMS) head.appendChild(el("div", null, short));
+  matrix.appendChild(head);
+
+  for (const [task, arms] of byTask) {
+    const row = el("div", "mrow");
+    row.appendChild(el("div", null, task));
+    for (const [key, , short] of ARMS) {
+      const r = arms[key];
+      const cell = el("div", "arm");
+      cell.dataset.arm = short;
+      if (!r) { cell.textContent = "—"; }
+      else if (r.shipped) {
+        cell.dataset.v = "shipped";
+        cell.textContent = r.attempts > 1 ? `shipped ×${r.attempts}` : "shipped";
+      } else if (r.outcome === "escalate") {
+        cell.dataset.v = "escalated";
+        cell.textContent = "escalated";
+      } else {
+        cell.dataset.v = "blocked";
+        cell.textContent = "blocked";
+      }
+      row.appendChild(cell);
+    }
+    matrix.appendChild(row);
+  }
+  box.appendChild(matrix);
+  box.appendChild(el("p", "note",
+    "A count after “shipped” is how many attempts it took: the gates caught a defect and the repair passed. “Blocked” means no attempt satisfied every gate, so nothing reached a reviewer."));
+}
+
+/* -------------------------------- boot --------------------------------- */
+
+buildRail(rail);
+idleLog();
 $("run").addEventListener("click", run);
 $("task").addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+route();
 </script>
 </body>
 </html>

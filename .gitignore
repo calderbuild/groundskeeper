@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 warehouse/*.duckdb
 .DS_Store
+runs/
+docs/handoffs/
