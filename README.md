@@ -29,6 +29,16 @@ Two defects a reviewer would very likely miss:
 
 Groundskeeper catches both before the model is ever offered.
 
+## The console
+
+![Two defects caught in one run](docs/screenshots/02-gates-catch-two-defects.jpg)
+
+One run against a live catalog. `field_existence` rejects `order_items.price` (the column is `unit_price`); `compilation` rejects the date comparison because `order_date` is a `VARCHAR`. Both defects are in SQL that reads perfectly.
+
+![Repaired and shipped](docs/screenshots/03-repaired-and-shipped.jpg)
+
+Attempt two, same gates, all green — `unit_price` and a `CAST` around the date.
+
 ## What it does
 
 ```
