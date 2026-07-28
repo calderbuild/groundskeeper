@@ -55,7 +55,12 @@ def run_arm(label, generator, gates, context, task, name_to_urn, max_attempts):
     try:
         report = runner.run(task, name_to_urn)
     except Exception as e:
-        return None, {"arm": label, "task": task, "outcome": "error", "detail": str(e)[:200]}
+        return None, {
+            "arm": label,
+            "task": task,
+            "outcome": "error",
+            "detail": str(e)[:200],
+        }
     first = report.attempts[0] if report.attempts else None
     return report, {
         "arm": label,
@@ -136,7 +141,9 @@ async def main() -> int:
 
         for row in rows[-3:]:
             mark = "ok " if row.get("shipped") else "NO "
-            print(f"    {mark} {row['arm']:11} {row['outcome']:9} attempts={row.get('attempts', 0)}")
+            print(
+                f"    {mark} {row['arm']:11} {row['outcome']:9} attempts={row.get('attempts', 0)}"
+            )
 
     summary = {}
     for arm in ("ungrounded", "grounded", "verified"):

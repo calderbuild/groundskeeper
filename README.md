@@ -153,16 +153,18 @@ src/groundskeeper/
 scripts/              run_task.py, benchmark.py, console.py, e2e_gate_probe.py
 examples/             benchmark results, verification transcripts
 runs/                 run records, written as you go (gitignored)
-tests/                49 tests, no DataHub required
+tests/                55 tests, no DataHub required
 ```
 
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 49 passed
+python -m pytest tests/ -q     # 55 passed
 ```
 
 They cover the behaviour the project claims: hallucinated columns rejected and repaired, type errors caught only by execution, unqualified columns in joins refused rather than guessed, CTE names not mistaken for missing tables, escalation never burning retries on absent metadata, and a run record that survives the trip to disk saying the same thing it said on screen.
+
+They also check the table above against `examples/benchmark.json` itself, so the headline numbers cannot drift from the runs they came from. One of those tests encodes the invariant an earlier version of this benchmark broke: the verified arm cannot ship less than grounding alone, because it *is* grounding plus repair, and a result below it means the arms were sampled separately and compared across noise.
 
 CI runs them on 3.10, 3.11 and 3.12 with only `duckdb`, `sqlglot` and `pytest` installed, and fails if `acryl-datahub` is present, so "no DataHub required" stays a fact rather than a claim. A second job builds the wheel, installs it alone, and reads the console through the installed package — the failure this project reported against DataHub was a wheel that installed cleanly while missing a file read at runtime, and Groundskeeper had the same defect until it was caught the same way.
 

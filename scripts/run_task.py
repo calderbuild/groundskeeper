@@ -38,8 +38,11 @@ async def main() -> int:
     )
     parser.add_argument("--no-gates", action="store_true", help="skip verification")
     parser.add_argument("--name", default="generated_model")
-    parser.add_argument("--write-back", action="store_true",
-                        help="register the verified model in DataHub with lineage")
+    parser.add_argument(
+        "--write-back",
+        action="store_true",
+        help="register the verified model in DataHub with lineage",
+    )
     args = parser.parse_args()
 
     async with mcp_session() as session:

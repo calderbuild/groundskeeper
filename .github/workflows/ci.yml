@@ -41,6 +41,25 @@ jobs:
       - name: Run the suite
         run: pytest -q
 
+  lint:
+    name: lint and format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Pinned. An unpinned formatter turns someone else's release into a red
+      # build on a commit that did not touch the code.
+      - name: Install ruff
+        run: pip install ruff==0.15.1
+
+      - run: ruff check .
+      - run: ruff format --check .
+
   packaging:
     name: an installed copy can serve its own console
     runs-on: ubuntu-latest
