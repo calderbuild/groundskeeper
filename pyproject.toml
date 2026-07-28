@@ -5,6 +5,10 @@ description = "Metadata-aware data code generation with a verification gate"
 requires-python = ">=3.10,<3.13"
 dependencies = ["acryl-datahub>=1.6.0", "duckdb>=1.1.0", "sqlglot>=25.0.0"]
 
+[project.optional-dependencies]
+# The suite needs no DataHub install, which CI enforces rather than assumes.
+dev = ["pytest>=8.0"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

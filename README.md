@@ -112,7 +112,9 @@ datahub docker quickstart
 datahub datapack load showcase-ecommerce
 
 # 2. Groundskeeper
-uv venv --python 3.11 && uv pip install -e .
+uv venv --python 3.11
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+uv pip install -e ".[dev]"
 
 # 3. Any OpenAI-compatible model
 export GROUNDSKEEPER_API_KEY=...
