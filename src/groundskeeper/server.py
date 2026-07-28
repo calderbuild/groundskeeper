@@ -17,6 +17,7 @@ import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib import resources
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -31,9 +32,16 @@ from .pipeline import VerifiedGenerator
 from .warehouse import build_warehouse
 from .writeback import emit, plan_writeback
 
-ROOT = Path(__file__).resolve().parents[2]
-CONSOLE = ROOT / "console" / "index.html"
-BENCHMARK = ROOT / "examples" / "benchmark.json"
+# The console ships inside the package, so an installed Groundskeeper can serve
+# it. Resolving it relative to the source tree instead would make the console a
+# 500 for anyone who installed the wheel rather than cloning, and the wheel
+# would still build and install without complaint.
+CONSOLE = resources.files(__package__) / "console" / "index.html"
+
+# The benchmark result is an artifact of a checkout rather than of the package:
+# scripts/benchmark.py regenerates it and examples/ is where it is published.
+# Installed on its own, the benchmark view reports it missing, which is true.
+BENCHMARK = Path(__file__).resolve().parents[2] / "examples" / "benchmark.json"
 DEFAULT_TABLES = ["orders", "order_items", "customers", "products", "regions"]
 
 _SENTINEL = object()
@@ -236,7 +244,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = CONSOLE.read_bytes()
         except FileNotFoundError:
-            self.send_error(500, "console/index.html is missing")
+            self.send_error(500, "the console asset is missing from the package")
             return
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")

@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor and ceiling declared in pyproject.toml, plus the version
+        # this is developed on.
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      # Deliberately not the project's own dependencies. The gates and the
+      # record store are pure enough to test without a DataHub install, and
+      # installing acryl-datahub here would hide it if that stopped being true.
+      - name: Install what the tests actually need
+        run: pip install duckdb sqlglot pytest
+
+      - name: The suite must not need a DataHub install
+        run: |
+          python - <<'PY'
+          import importlib.util as u, sys
+          if u.find_spec("datahub") is not None:
+              sys.exit("acryl-datahub is installed, so this job can no longer prove the point")
+          PY
+
+      - name: Run the suite
+        run: pytest -q
+
+  packaging:
+    name: an installed copy can serve its own console
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Build the wheel
+        run: |
+          pip install build
+          python -m build --wheel --outdir dist
+
+      # This project reported a bug against DataHub where a wheel built and
+      # installed cleanly while missing the data files a command read at
+      # runtime. Groundskeeper had the same defect. Building is not enough to
+      # catch that: the check has to install the artifact and read through it
+      # from a directory that is not the checkout.
+      - name: Install the wheel on its own and read the console through it
+        run: |
+          python -m venv /tmp/installed
+          # --no-deps keeps acryl-datahub out, which this check does not need
+          # and which dominates the install. sqlglot and duckdb are imported at
+          # module load, so they go in by hand.
+          /tmp/installed/bin/pip install --quiet --no-deps dist/*.whl
+          /tmp/installed/bin/pip install --quiet duckdb sqlglot
+          cd /tmp
+          /tmp/installed/bin/python - <<'PY'
+          from groundskeeper import server
+          body = server.CONSOLE.read_bytes()
+          assert b"Groundskeeper" in body, "the console asset is not the console"
+          print(f"console served from an installed copy: {len(body)} bytes")
+          PY
