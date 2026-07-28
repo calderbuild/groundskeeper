@@ -16,6 +16,8 @@ import queue
 import threading
 import time
 import traceback
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
@@ -44,6 +46,21 @@ CONSOLE = resources.files(__package__) / "console" / "index.html"
 BENCHMARK = Path(__file__).resolve().parents[2] / "examples" / "benchmark.json"
 DEFAULT_TABLES = ["orders", "order_items", "customers", "products", "regions"]
 
+# The DataHub SDK retries a connection it cannot make, so with DataHub down the
+# catalog load does not fail, it simply never returns. Unbounded, the panel in
+# the console spins for as long as the page is open and never says why, which
+# is the first thing anyone sees if they start the console before the quickstart
+# has finished coming up. Bounded, they get told.
+#
+# The bound has to be on the wait, not on the work: those retries block rather
+# than await, so asyncio.wait_for never gets control back to fire its timeout.
+# Loading on a worker instead means the request can give up while the load
+# carries on, and whoever asks next gets the answer if it did arrive.
+CATALOG_TIMEOUT = float(os.environ.get("GROUNDSKEEPER_CATALOG_TIMEOUT", "20"))
+_CATALOG_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="catalog")
+_catalog_lock = threading.Lock()
+_catalog_future: Future | None = None
+
 _SENTINEL = object()
 _catalog_cache: dict | None = None
 
@@ -54,6 +71,17 @@ async def _load_catalog(tables: list[str]):
         name_to_urn = {t: available[t] for t in tables if t in available}
         context = await load_schemas(session, list(name_to_urn.values()))
     return context, name_to_urn
+
+
+def _catalog_summary() -> dict:
+    """What the console shows in its grounding panel. Runs on a worker."""
+    context, name_to_urn = asyncio.run(_load_catalog(DEFAULT_TABLES))
+    return {
+        "tables": [
+            {"name": t, "columns": len(context.schema_for(u) or ())}
+            for t, u in name_to_urn.items()
+        ]
+    }
 
 
 def _absorb(record: store.RunRecord, event: Event) -> None:
@@ -208,26 +236,47 @@ class Handler(BaseHTTPRequestHandler):
         Loaded once and cached: it answers a first-time visitor's actual first
         question, and an empty right-hand column answers nothing.
         """
-        global _catalog_cache
-        if _catalog_cache is None:
-            try:
-                context, name_to_urn = asyncio.run(_load_catalog(DEFAULT_TABLES))
-                _catalog_cache = {
-                    "tables": [
-                        {"name": t, "columns": len(context.schema_for(u) or ())}
-                        for t, u in name_to_urn.items()
-                    ]
-                }
-            except Exception as e:
-                # Not cached, so the console recovers as soon as DataHub is up.
-                self._json(
-                    {
-                        "error": "Could not reach DataHub.",
-                        "detail": f"{type(e).__name__}: {e}",
-                    },
-                    code=503,
-                )
-                return
+        global _catalog_cache, _catalog_future
+        if _catalog_cache is not None:
+            self._json(_catalog_cache)
+            return
+
+        with _catalog_lock:
+            # A load that already failed is not worth waiting on again, so the
+            # next request starts a fresh one and the console recovers on its
+            # own once DataHub is up.
+            spent = _catalog_future is not None and (
+                _catalog_future.done() and _catalog_future.exception() is not None
+            )
+            if _catalog_future is None or spent:
+                _catalog_future = _CATALOG_POOL.submit(_catalog_summary)
+            pending = _catalog_future
+
+        try:
+            _catalog_cache = pending.result(timeout=CATALOG_TIMEOUT)
+        except FutureTimeout:
+            self._json(
+                {
+                    "error": "Could not reach DataHub.",
+                    "detail": (
+                        f"No answer within {CATALOG_TIMEOUT:.0f}s from "
+                        f"{os.environ.get('DATAHUB_GMS_URL', 'DATAHUB_GMS_URL (unset)')}. "
+                        "The console and past runs work without it. "
+                        "Starting a new run needs it."
+                    ),
+                },
+                code=503,
+            )
+            return
+        except Exception as e:
+            self._json(
+                {
+                    "error": "Could not reach DataHub.",
+                    "detail": f"{type(e).__name__}: {e}",
+                },
+                code=503,
+            )
+            return
         self._json(_catalog_cache)
 
     def _benchmark(self) -> None:
